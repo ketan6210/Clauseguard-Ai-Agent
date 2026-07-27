@@ -36,7 +36,7 @@ function App() {
   }
 
   return <>
-    <header><div className="brand"><span className="mark">CG</span><div><strong>ClauseGuard</strong><small>Contract intelligence, with evidence</small></div></div><span className="badge">Human review required</span></header>
+    <header><div className="brand"><span className="mark">CG</span><div><strong>ClauseGuard</strong><small>Contract intelligence, with evidence</small></div></div><div><span className="badge">Local Qwen AI enabled</span> <span className="badge">Human review required</span></div></header>
     <main>
       <section className="hero"><p className="eyebrow">COMPLIANCE WORKBENCH</p><h1>Know what the contract <em>really</em> says.</h1><p>Review vendor contracts against company policy, trace every finding to evidence, and keep the final decision with your team.</p></section>
       <form className="upload" onSubmit={submitUpload}>
@@ -53,7 +53,7 @@ function App() {
           {finding.evidence.map(item => <details key={item.source_id}><summary>{item.title} · {item.section}</summary><p>{item.text}</p><small>Policy ID {item.source_id} · relevance {Math.round(item.score * 100)}%</small></details>)}
           <div className="decisions"><button onClick={() => decide(finding.id, 'approved')} disabled={finding.status !== 'pending'}>Approve finding</button><button className="reject" onClick={() => decide(finding.id, 'rejected')} disabled={finding.status !== 'pending'}>Reject</button></div>
         </article>)}</section>
-        <section className="ask"><p className="eyebrow">CITED Q&A</p><h2>Ask about this contract</h2><form onSubmit={ask}><input value={question} onChange={e => setQuestion(e.target.value)} placeholder="What are the breach notification obligations?"/><button disabled={busy}>Ask</button></form>{answer && <div className="answer"><p>{answer.answer}</p>{answer.citations.map(c => <small key={c.source_id}>{c.title} — {c.section}</small>)}</div>}</section>
+        <section className="ask"><p className="eyebrow">LOCAL AI · RAG-GROUNDED</p><h2>Ask Qwen about this contract</h2><p>Answers use the clauses and company policies retrieved for this review. No paid API key is used.</p><form onSubmit={ask}><input value={question} onChange={e => setQuestion(e.target.value)} placeholder="What are the breach notification obligations?"/><button disabled={busy}>{busy ? 'Asking Qwen…' : 'Ask local AI'}</button></form>{answer && <div className="answer"><small>Answer mode: {answer.generation_mode === 'local_llm' ? 'Local AI (Qwen)' : 'Evidence fallback'}</small><p>{answer.answer}</p>{answer.contract_citations.length > 0 && <><strong>Contract sources</strong>{answer.contract_citations.map(c => <small key={`contract-${c.source_id}`}>{c.title} — {c.section}</small>)}</>}{answer.policy_citations.length > 0 && <><strong>Policy sources</strong>{answer.policy_citations.map(c => <small key={`policy-${c.source_id}`}>{c.title} — {c.section}</small>)}</>}</div>}</section>
         <section className="report"><button onClick={async () => setReport(await getReport(review.review_id))}>Generate JSON report</button>{report && <pre>{JSON.stringify(report, null, 2)}</pre>}</section>
       </>}
     </main><footer>ClauseGuard assists legal and compliance reviewers. It does not replace legal counsel.</footer>

@@ -1,0 +1,40 @@
+MASTER SERVICES AGREEMENT
+
+This synthetic agreement is entered into between Provider and Customer.
+
+1. Fees and Payment
+1.1 Payment Terms
+Invoices are due within thirty (30) days after receipt.
+
+2. Term and Renewal
+2.1 Automatic Renewal
+This Agreement automatically renews unless Customer gives one hundred twenty (120) days notice.
+
+3. Termination
+3.1 Provider Termination
+Provider may terminate for convenience on ten (10) days notice, but Customer may not terminate for convenience.
+
+4. Data Rights
+4.1 AI Training
+Provider may use Customer Data, prompts, and outputs to train and fine-tune machine-learning models.
+
+4.2 Data License
+Customer grants Provider a perpetual, irrevocable, sublicensable license to commercialize Customer Data.
+
+4.3 Data Deletion
+Provider may retain Customer Data for one hundred eighty (180) days after termination.
+
+5. Security
+5.1 Incident Notice
+Provider will notify Customer within five (5) days after discovering a data breach.
+
+6. Liability
+6.1 Provider Liability Cap
+Provider's total aggregate liability will not exceed three (3) months of fees.
+
+SCHEDULE A - ORDER FORM
+Invoices are payable Net 10.
+
+SCHEDULE B - DATA PROCESSING ADDENDUM
+Provider will notify Customer within seventy-two (72) hours after confirming a Security Incident.
+Provider will delete Customer Data within thirty (30) days after termination.

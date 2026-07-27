@@ -53,6 +53,9 @@ class QuestionRequest(BaseModel):
 class QuestionResponse(BaseModel):
     answer: str
     citations: list[Evidence]
+    contract_citations: list[Evidence] = []
+    policy_citations: list[Evidence] = []
+    generation_mode: Literal["local_llm", "extractive_fallback"] = "extractive_fallback"
 
 
 class DecisionRequest(BaseModel):

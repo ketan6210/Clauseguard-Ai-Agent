@@ -3,6 +3,7 @@ from pathlib import Path
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_clauseguard.db"
 os.environ["UPLOAD_DIR"] = "./test_uploads"
+os.environ["OLLAMA_ENABLED"] = "false"
 
 from fastapi.testclient import TestClient
 
@@ -38,3 +39,8 @@ def test_complete_review_flow():
     question = client.post(f"/reviews/{review['review_id']}/ask", json={"question": "What are the breach notification terms?"})
     assert question.status_code == 200
     assert question.json()["citations"]
+    assert question.json()["contract_citations"]
+    assert all(
+        citation["source_id"].startswith("clause-")
+        for citation in question.json()["contract_citations"]
+    )

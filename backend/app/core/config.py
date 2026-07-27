@@ -13,10 +13,15 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{BACKEND_DIR / 'clauseguard.db'}"
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "clauseguard_policies"
+    qdrant_clause_collection: str = "clauseguard_contract_clauses"
     qdrant_enabled: bool = True
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     openai_api_key: str = ""
     openai_model: str = "gpt-5-mini"
+    ollama_enabled: bool = False
+    ollama_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "qwen3:4b"
+    ollama_timeout_seconds: float = 120
     upload_dir: str = str(BACKEND_DIR / "uploads")
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 

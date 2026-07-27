@@ -7,12 +7,14 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.agents.graph import invoke_review
+from app.services.clause_classifier import classify_clause
 from app.core.config import settings
 from app.db.database import get_db
 from app.db.models import Review, ReviewerDecision
 from app.schemas.review import DecisionRequest, DecisionResponse, QuestionRequest, QuestionResponse, ReviewResponse
 from app.services.llm_service import answer_question
-from app.services.policy_store import hybrid_search
+from app.services.contract_store import search_contract_clauses
+from app.services.policy_store import hybrid_search, load_policies
 from app.services.report_service import create_report_json
 
 
@@ -46,7 +48,7 @@ def upload_review(file: UploadFile = File(...), db: Session = Depends(get_db)):
             shutil.copyfileobj(file.file, destination)
         if file_path.stat().st_size > 20 * 1024 * 1024:
             raise ValueError("File exceeds the 20 MB limit")
-        result = invoke_review(str(file_path))
+        result = invoke_review(str(file_path), review_id)
     except ValueError as exc:
         file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -66,7 +68,39 @@ def get_review(review_id: str, db: Session = Depends(get_db)):
 @router.post("/{review_id}/ask", response_model=QuestionResponse)
 def ask(review_id: str, request: QuestionRequest, db: Session = Depends(get_db)):
     review = _response(_get_review(review_id, db))
-    return answer_question(request.question, review.clauses, hybrid_search(request.question))
+    contract_evidence = search_contract_clauses(
+        review_id,
+        request.question,
+        review.clauses,
+    )
+    question_category = classify_clause(request.question)
+    if question_category != "other":
+        category_matched_contract = [
+            item
+            for item in contract_evidence
+            if item.section.split(" · ", 1)[0] == question_category
+        ]
+        if category_matched_contract:
+            contract_evidence = category_matched_contract
+    policy_evidence = hybrid_search(request.question)
+    retrieved_categories = {
+        item.section.split(" · ", 1)[0] for item in contract_evidence
+    }
+    if question_category != "other":
+        retrieved_categories = {question_category}
+    policy_categories = {
+        policy["id"]: policy["category"] for policy in load_policies()
+    }
+    category_matched_policies = [
+        item
+        for item in policy_evidence
+        if policy_categories.get(item.source_id) in retrieved_categories
+    ]
+    if category_matched_policies:
+        policy_evidence = category_matched_policies
+    else:
+        policy_evidence = policy_evidence[:1]
+    return answer_question(request.question, contract_evidence, policy_evidence)
 
 
 @router.post("/{review_id}/decision", response_model=DecisionResponse)

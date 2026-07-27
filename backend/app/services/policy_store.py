@@ -156,6 +156,11 @@ def hybrid_search(query: str, category: str | None = None, limit: int = 5) -> li
         for rank, item in enumerate(result_set, start=1):
             results[item.source_id] = item
             scores[item.source_id] = scores.get(item.source_id, 0.0) + 1 / (60 + rank)
+    if category:
+        for policy in policies_by_id.values():
+            if policy["category"] == category and policy["id"] not in results:
+                results[policy["id"]] = _evidence(policy, 0)
+                scores[policy["id"]] = 0.02
     for source_id in scores:
         if category and policies_by_id.get(source_id, {}).get("category") == category:
             scores[source_id] += 0.02

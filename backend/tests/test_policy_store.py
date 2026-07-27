@@ -5,6 +5,23 @@ from qdrant_client import QdrantClient
 from app.services import policy_store
 
 
+def test_policy_library_covers_core_rag_categories():
+    categories = {policy["category"] for policy in policy_store.load_policies()}
+
+    assert {
+        "ai_training",
+        "data_licensing",
+        "security_controls",
+        "business_continuity",
+        "insurance",
+        "subprocessors",
+        "indemnification",
+        "service_levels",
+        "publicity_rights",
+        "arbitration_costs",
+    } <= categories
+
+
 def test_vector_search_uses_qdrant_payload(monkeypatch):
     hit = SimpleNamespace(
         payload={
