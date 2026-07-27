@@ -1,0 +1,15 @@
+VENDOR AGREEMENT
+
+1. Services. Acme Analytics LLC ("Vendor") will provide hosted analytics services to Company.
+
+2. Security Incident Notification. Vendor will notify Company within 10 business days after discovering a data breach or security incident.
+
+3. Automatic Renewal. This Agreement automatically renews for successive one-year terms unless either party gives at least 120 days written notice before renewal.
+
+4. Limitation of Liability. Vendor's total liability is limited to one month of fees paid under this Agreement.
+
+5. Payment Terms. Company will pay all undisputed invoices Net 60 from receipt.
+
+6. Termination. Either party may terminate this Agreement for a material uncured breach.
+
+7. Governing Law. This Agreement is governed by the laws of the State of New York.
