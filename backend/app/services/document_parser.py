@@ -1,9 +1,28 @@
 from pathlib import Path
 
+from app.core.config import settings
 from app.schemas.review import DocumentPage
 
 
 SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf", ".docx"}
+
+
+def _pdf_page_text(page) -> str:
+    text = page.get_text("text")
+    if text.strip() or not settings.ocr_enabled:
+        return text
+    try:
+        text_page = page.get_textpage_ocr(
+            language=settings.ocr_language,
+            dpi=settings.ocr_dpi,
+            full=True,
+        )
+        return page.get_text("text", textpage=text_page)
+    except (RuntimeError, AttributeError) as exc:
+        raise ValueError(
+            "This PDF appears to be scanned. OCR was attempted but Tesseract "
+            "is unavailable or could not read the page."
+        ) from exc
 
 
 def parse_document(file_path: str | Path) -> list[DocumentPage]:
@@ -18,7 +37,10 @@ def parse_document(file_path: str | Path) -> list[DocumentPage]:
         import fitz
 
         with fitz.open(path) as document:
-            pages = [DocumentPage(page_number=index + 1, text=page.get_text("text")) for index, page in enumerate(document)]
+            pages = [
+                DocumentPage(page_number=index + 1, text=_pdf_page_text(page))
+                for index, page in enumerate(document)
+            ]
     else:
         from docx import Document
 
@@ -26,5 +48,5 @@ def parse_document(file_path: str | Path) -> list[DocumentPage]:
         pages = [DocumentPage(page_number=1, text="\n".join(p.text for p in document.paragraphs))]
 
     if not any(page.text.strip() for page in pages):
-        raise ValueError("The document contains no extractable text. OCR is not included in the MVP.")
+        raise ValueError("The document contains no extractable text.")
     return pages

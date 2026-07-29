@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -30,4 +30,16 @@ class ReviewerDecision(Base):
     finding_id: Mapped[str] = mapped_column(String(100), index=True)
     decision: Mapped[str] = mapped_column(String(20))
     comment: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class FindingValidation(Base):
+    __tablename__ = "finding_validations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    review_id: Mapped[str] = mapped_column(ForeignKey("reviews.id"), index=True)
+    finding_id: Mapped[str] = mapped_column(String(100), index=True)
+    label: Mapped[str] = mapped_column(String(20))
+    combined_score: Mapped[float] = mapped_column(Float)
+    pipeline_version: Mapped[str] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

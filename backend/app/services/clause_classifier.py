@@ -132,13 +132,17 @@ def classify_contract_type(full_text: str) -> str:
 
 
 def classify_clause(text: str) -> str:
+    return classify_clause_with_confidence(text)[0]
+
+
+def classify_clause_with_confidence(text: str) -> tuple[str, float]:
     lowered = text.lower()
     if (
         "security incident" in lowered
         or "data breach" in lowered
         or ("breach" in lowered and any(term in lowered for term in ("notify", "notification", "incident notice")))
     ):
-        return "data_breach_notification"
+        return "data_breach_notification", 0.97
     priority_rules = (
         ("feedback_rights", ("feedback customer", "feedback. customer", "9.2 feedback")),
         ("publicity_rights", ("publicity provider", "publicity. provider", "17.3 publicity")),
@@ -149,7 +153,7 @@ def classify_clause(text: str) -> str:
     )
     for category, phrases in priority_rules:
         if any(phrase in lowered for phrase in phrases):
-            return category
+            return category, 0.96
 
     heading = lowered[:160]
     scores = {}
@@ -162,8 +166,14 @@ def classify_clause(text: str) -> str:
             if re.search(keyword_pattern, heading):
                 score += 2
         scores[category] = score
-    category, score = max(scores.items(), key=lambda item: item[1])
-    return category if score else "other"
+    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    category, score = ranked[0]
+    if not score:
+        return "other", 0.35
+    runner_up = ranked[1][1] if len(ranked) > 1 else 0
+    margin = max(0, score - runner_up)
+    confidence = min(0.97, 0.55 + min(score, 4) * 0.08 + min(margin, 3) * 0.04)
+    return category, round(confidence, 4)
 
 
 SECTION_HEADING = re.compile(
@@ -273,14 +283,14 @@ def extract_clauses(pages: list[DocumentPage]) -> list[Clause]:
         nonlocal current_lines, current_has_body
         text = re.sub(r"\s+", " ", " ".join(current_lines)).strip()
         if text and current_has_body and len(text) >= 15:
-            clause_type = classify_clause(text)
+            clause_type, classification_confidence = classify_clause_with_confidence(text)
             clauses.append(
                 Clause(
                     id=f"clause-{len(clauses) + 1}",
                     clause_type=clause_type,
                     text=text,
                     page=current_page,
-                    confidence=0.88 if clause_type != "other" else 0.55,
+                    confidence=classification_confidence,
                 )
             )
         current_lines = []

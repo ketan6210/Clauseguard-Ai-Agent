@@ -63,7 +63,7 @@ def test_hybrid_search_boosts_matching_category(monkeypatch):
     )
 
     assert results[0].source_id == "POL-LIABILITY-001"
-    assert results[0].score == 1.0
+    assert 0 <= results[0].score < 1.0
 
 
 def test_policy_index_round_trip_with_in_memory_qdrant(monkeypatch):

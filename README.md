@@ -11,6 +11,7 @@ grounded cited answers; and records reviewer decisions.
 ## What works
 
 - Contract upload and text extraction with page references
+- Automatic Tesseract OCR fallback for scanned PDF pages
 - Hierarchy-aware contract classification with primary agreement and attachment detection
 - Hierarchical clause extraction with repeated header/footer and contents-page filtering
 - Legal-number normalization for written, numeric, and parenthetical durations
@@ -24,6 +25,12 @@ grounded cited answers; and records reviewer decisions.
 - SQLite review persistence and approve/reject workflow
 - Contract Q&A grounded in document excerpts and policy evidence
 - Optional free local Qwen3 generation through Ollama, with citation validation and automatic fallback
+- Optional citation-grounded Qwen second-pass risk detection with confidence controls
+- Executable legal regression benchmark with classification, precision, and recall metrics
+- Impact × evidence priority scoring and overall contract-risk analytics
+- Batched, failure-isolated Qwen analysis with strict clause/policy citation validation
+- Versioned factual-validity feedback for score calibration
+- File-signature validation for PDF, DOCX, TXT, and Markdown uploads
 - Responsive React/TypeScript dashboard
 - Docker Compose, backend tests, and CI
 
@@ -43,6 +50,40 @@ extractive evidence answer.
 - **Grounding:** retrieved evidence IDs are supplied to the model and displayed as citations
 - **Safety:** unknown citations or incomplete model answers are rejected automatically
 - **Fallback:** deterministic extractive answers remain available when Ollama or Qdrant is offline
+
+### Explainable match strength
+
+Finding percentages are calculated rather than hard-coded. The current score combines:
+
+| Combined-score signal | Weight |
+|---|---:|
+| Deterministic rule strength | 18% |
+| Clause-classification confidence | 10% |
+| Contract/document relevance | 9% |
+| Policy RAG similarity | 7% |
+| Retrieval quality and result margin | 7% |
+| Explicit policy-deviation support | 13% |
+| Qwen evidence verification | 12% |
+| Independent evidence consistency | 8% |
+| Legal clause specificity | 7% |
+| Text-extraction quality | 9% |
+
+The UI calls this value a **combined evidence score**, not statistical confidence.
+It exposes every raw signal and its weighted point contribution. Qwen returns only
+`supported`, ambiguity, policy stance, and cited evidence IDs; it cannot directly
+choose the final percentage. Missing signals are omitted and available weights are
+renormalized. Rule/Qwen disagreement caps the score and marks the finding as
+needing review.
+
+Risk impact and evidence support remain separate. A finding's **priority score**
+combines both for sorting, while uncertain Critical findings are always escalated
+for urgent human review. Overall contract risk combines maximum finding priority,
+the top-five mean, and risk prevalence. This remains an explainable index—not a
+calibrated probability.
+
+Workflow approval is separate from factual correctness. Reviewer `valid`, `invalid`,
+and `uncertain` labels are versioned with the score snapshot and summarized at
+`GET /reviews/metrics/calibration`.
 
 ## Run locally
 
@@ -79,6 +120,22 @@ Set `OLLAMA_ENABLED=true` in `backend/.env` (copy `.env.example` if needed), the
 restart the backend. The default endpoint is `http://127.0.0.1:11434`, and the
 frontend labels each response as either `Local AI (Qwen)` or `Evidence fallback`.
 
+To enable the conservative LLM risk second-pass, also set
+`LLM_RISK_SECOND_PASS_ENABLED=true`. It is disabled by default because every new
+rule or model finding should first be measured against the evaluation dataset.
+
+### Run the legal-quality benchmark
+
+```bash
+cd backend
+PYTHONPATH=. QDRANT_ENABLED=false .venv/bin/python scripts/evaluate.py
+```
+
+The benchmark manifest is in `backend/evaluation/cases.json`. Each case locks the
+expected contract type, exact finding titles, and forbidden false positives. It
+reports precision, recall, and Brier score for match-strength calibration. Add a case
+whenever a parser, classifier, rule, retrieval, severity, or confidence bug is found.
+
 ## Run with Docker
 
 ```bash
@@ -92,10 +149,13 @@ Open `http://localhost:3000`. Qdrant's dashboard is exposed at `http://localhost
 | Method | Route | Purpose |
 |---|---|---|
 | GET | `/health` | Service health |
+| GET | `/health/capabilities` | Runtime model, retrieval, OCR, and pipeline status |
 | POST | `/reviews/upload` | Upload and analyze a document |
 | GET | `/reviews/{id}` | Fetch a saved review |
 | POST | `/reviews/{id}/ask` | Ask a grounded question |
 | POST | `/reviews/{id}/decision` | Approve or reject a finding |
+| POST | `/reviews/{id}/validation` | Label a detection valid, invalid, or uncertain |
+| GET | `/reviews/metrics/calibration` | Human-labelled calibration buckets |
 | GET | `/reviews/{id}/report` | Downloadable JSON-shaped report |
 
 ## Architecture
@@ -118,6 +178,6 @@ cd frontend && npm run build
 
 ## Next production steps
 
-Add OCR and authentication, move persistence to PostgreSQL/object storage, and add
-larger evaluation datasets before enabling generative answers by default in a
-production deployment.
+Add authentication, move persistence to PostgreSQL/object storage, and expand the
+evaluation corpus to at least 30–50 independently labelled contracts before
+enabling generative findings by default in a production deployment.
