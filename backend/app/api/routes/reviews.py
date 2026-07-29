@@ -76,6 +76,7 @@ def upload_review(file: UploadFile = File(...), db: Session = Depends(get_db)):
 @router.get("/metrics/confidence")
 @router.get("/metrics/calibration")
 def confidence_metrics(db: Session = Depends(get_db)):
+    """Measure calibration from factual-validity labels, not workflow approval."""
     buckets = {
         "0-59": {"count": 0, "approved": 0, "confidence_total": 0.0},
         "60-79": {"count": 0, "approved": 0, "confidence_total": 0.0},
@@ -177,6 +178,7 @@ def ask(review_id: str, request: QuestionRequest, db: Session = Depends(get_db))
 
 @router.post("/{review_id}/decision", response_model=DecisionResponse)
 def decide(review_id: str, request: DecisionRequest, db: Session = Depends(get_db)):
+    """Record the business workflow decision for a finding."""
     record = _get_review(review_id, db)
     findings = json.loads(record.findings_json)
     finding = next((item for item in findings if item["id"] == request.finding_id), None)
@@ -206,6 +208,7 @@ def validate_finding(
     request: ValidationRequest,
     db: Session = Depends(get_db),
 ):
+    """Upsert factual correctness feedback with a reproducible score snapshot."""
     record = _get_review(review_id, db)
     finding = next(
         (

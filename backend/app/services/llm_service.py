@@ -17,6 +17,7 @@ _JSON_FENCE_PATTERN = re.compile(
 )
 _MAX_JSON_RESPONSE_CHARS = 1_000_000
 _MAX_JSON_DECODE_ATTEMPTS = 100
+# Small batches keep local-model prompts bounded and isolate malformed responses.
 _RESIDUAL_CLAUSE_BATCH_SIZE = 12
 _RESIDUAL_FINDINGS_PER_BATCH = 2
 _MAX_RESIDUAL_FINDINGS = 5
@@ -456,6 +457,8 @@ def verify_findings_with_qwen(
                 ],
             }
         )
+    # Each batch is independently validated; a timeout or malformed response does
+    # not discard assessments already accepted from other batches.
     verified = {}
     for batch_number, record_batch in enumerate(
         _batches(records, _VERIFICATION_BATCH_SIZE),
@@ -524,6 +527,8 @@ Findings:
                 value["id"] for value in record.get("policy_evidence", [])
             }
             if (
+                # Positive verification requires the exact contract clause and,
+                # when supplied, at least one applicable policy citation.
                 not evidence_ids.issubset(allowed_evidence.get(finding_id, set()))
                 or (supported and not evidence_ids)
                 or (supported and required_clause_id and required_clause_id not in evidence_ids)

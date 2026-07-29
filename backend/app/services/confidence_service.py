@@ -1,3 +1,9 @@
+"""Build explainable evidence and review-priority scores for findings.
+
+The combined score is an engineering index, not a calibrated probability. Each
+factor is retained in the API so reviewers can inspect the calculation.
+"""
+
 import re
 
 from app.schemas.review import Clause, Finding
@@ -6,6 +12,8 @@ from app.services.llm_service import verify_findings_with_qwen
 from app.services.policy_store import policy_version
 
 
+# These weights are versioned through settings.pipeline_version. Missing optional
+# signals are removed and the remaining weights are renormalized below.
 WEIGHTS = {
     "rule_strength": 0.18,
     "clause_classification": 0.10,
@@ -60,6 +68,7 @@ def _document_relevance(finding: Finding) -> float:
 
 
 def _policy_alignment(finding: Finding) -> float | None:
+    """Return absolute retrieval similarity, not reciprocal-rank-fusion rank."""
     if not finding.evidence:
         return None
     return round(max(item.score for item in finding.evidence), 4)
@@ -74,6 +83,7 @@ def _retrieval_quality(finding: Finding) -> float | None:
 
 
 def _policy_deviation_support(finding: Finding) -> float | None:
+    """Estimate whether a rule establishes deviation, separately from similarity."""
     if not finding.evidence:
         return None
     if finding.clause_id is None:
@@ -101,6 +111,7 @@ def _clause_specificity(finding: Finding) -> float:
 
 
 def _qwen_score(assessment: dict | None, finding: Finding) -> float | None:
+    """Translate validated support/ambiguity into one bounded model signal."""
     if assessment:
         if (
             not assessment["supported"]
@@ -128,6 +139,7 @@ def _evidence_consistency(
 
 
 def score_findings(clauses: list[Clause], findings: list[Finding]) -> list[Finding]:
+    """Score findings and attach transparent factors, provenance, and priority."""
     clause_map = {clause.id: clause for clause in clauses}
     assessments = verify_findings_with_qwen(findings, clauses)
     scored = []
@@ -170,6 +182,8 @@ def score_findings(clauses: list[Clause], findings: list[Finding]) -> list[Findi
             )
         else:
             signal_status["qwen_verification"] = "not_available"
+        # Do not invent neutral values for unavailable policy/model signals.
+        # Renormalization ensures the visible contributions still sum to the score.
         active_weight_total = sum(WEIGHTS[name] for name in factors)
         contributions = {
             name: factors[name] * (WEIGHTS[name] / active_weight_total)
@@ -184,6 +198,8 @@ def score_findings(clauses: list[Clause], findings: list[Finding]) -> list[Findi
             )
         )
         if model_disagrees:
+            # A model contradiction never deletes a deterministic finding. It caps
+            # evidence support and explicitly routes the item to human review.
             capped_score = min(score, 0.59)
             if score > 0:
                 scale = capped_score / score
@@ -201,6 +217,7 @@ def score_findings(clauses: list[Clause], findings: list[Finding]) -> list[Findi
         bounded_score = round(min(0.99, max(0.01, score)), 4)
         priority_score = round(SEVERITY_WEIGHTS[finding.risk_level] * bounded_score * 100, 1)
         if finding.risk_level == "Critical" and bounded_score < 0.70:
+            # Uncertain Critical risks must not disappear below lower-impact items.
             priority_score = max(75.0, priority_score)
         priority_band = (
             "Urgent" if priority_score >= 75

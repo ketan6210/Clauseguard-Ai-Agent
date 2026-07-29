@@ -157,7 +157,8 @@ def hybrid_search(query: str, category: str | None = None, limit: int = 5) -> li
     ranking_scores: dict[str, float] = {}
     absolute_scores: dict[str, float] = {}
     candidate_limit = max(limit * 3, 10)
-    # Reciprocal rank fusion keeps scores comparable across vector and lexical engines.
+    # RRF chooses ordering only. The Evidence.score returned below remains the
+    # best absolute lexical/vector similarity and is never normalized to 1.0.
     for result_set in (vector_search(query, candidate_limit), keyword_search(query, candidate_limit)):
         for rank, item in enumerate(result_set, start=1):
             results[item.source_id] = item
@@ -167,6 +168,8 @@ def hybrid_search(query: str, category: str | None = None, limit: int = 5) -> li
                 max(0.0, min(1.0, item.score)),
             )
     if category:
+        # Category injection preserves checklist coverage but receives zero
+        # absolute relevance until retrieval finds real textual support.
         for policy in policies_by_id.values():
             if policy["category"] == category and policy["id"] not in results:
                 results[policy["id"]] = _evidence(policy, 0)

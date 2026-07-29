@@ -1,3 +1,5 @@
+"""Aggregate finding-level signals into review dashboard metrics."""
+
 from collections import Counter
 
 from app.schemas.review import Finding, ReviewMetrics
@@ -14,6 +16,7 @@ def _risk_band(score: float) -> str:
 
 
 def calculate_review_metrics(findings: list[Finding]) -> ReviewMetrics:
+    """Summarize evidence health and contract risk without conflating the two."""
     severity_counts = Counter(item.risk_level for item in findings)
     verification_counts = Counter(item.verification for item in findings)
     evidence_bands = Counter(
@@ -37,6 +40,7 @@ def calculate_review_metrics(findings: list[Finding]) -> ReviewMetrics:
         if count else 0
     )
     strengths = [item.combined_score for item in findings]
+    # Evidence health describes runtime coverage, not measured legal accuracy.
     pipeline_quality = (
         (sum(strengths) / count) * 70
         + policy_coverage * 15
@@ -59,6 +63,8 @@ def calculate_review_metrics(findings: list[Finding]) -> ReviewMetrics:
         "top_five_priority_mean": round(top_five_mean, 1),
         "risk_prevalence": round(prevalence, 1),
     }
+    # Overall risk emphasizes the strongest item, while still accounting for
+    # repeated exposure across the five highest-priority findings.
     overall = round(
         maximum_priority * 0.55 + top_five_mean * 0.30 + prevalence * 0.15,
         1,
