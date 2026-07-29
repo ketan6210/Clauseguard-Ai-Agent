@@ -1,0 +1,52 @@
+[
+  {
+    "name": "msa_regression",
+    "document": "../../sample_documents/msa_regression.txt",
+    "expected_contract_type": "Master Services Agreement",
+    "expected_findings": [
+      "Excessive renewal cancellation notice",
+      "One-sided termination right",
+      "Customer data may be used for AI training",
+      "Overly broad customer-data license",
+      "Excessive post-termination data retention",
+      "Breach notification exceeds 72 hours",
+      "Liability cap below policy",
+      "Conflicting payment terms",
+      "Conflicting data deletion periods",
+      "Conflicting breach notification periods",
+      "Missing appropriate insurance coverage clause",
+      "Missing assignment clause",
+      "Missing audit rights clause",
+      "Missing business continuity and disaster recovery clause",
+      "Missing confidentiality clause",
+      "Missing customer-data use restrictions clause",
+      "Missing governing law clause",
+      "Missing indemnification clause",
+      "Missing intellectual-property ownership clause",
+      "Missing security controls clause",
+      "Missing warranties clause"
+    ],
+    "forbidden_findings": [
+      "Warranty disclaimer",
+      "Early-termination charges"
+    ]
+  },
+  {
+    "name": "vendor_agreement",
+    "document": "../../sample_documents/vendor_agreement.txt",
+    "expected_contract_type": "Vendor Agreement",
+    "expected_findings": [
+      "Breach notification exceeds 72 hours",
+      "Missing data deletion clause",
+      "Missing audit rights clause",
+      "Excessive renewal cancellation notice",
+      "Liability cap below policy",
+      "Missing appropriate insurance coverage clause",
+      "Missing business continuity and disaster recovery clause",
+      "Missing confidentiality clause",
+      "Missing security controls clause",
+      "Payment terms exceed Net 45"
+    ],
+    "forbidden_findings": []
+  }
+]

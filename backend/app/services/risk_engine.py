@@ -13,7 +13,7 @@ from app.services.number_parser import (
 
 
 def _finding(clause: Clause, title: str, level: str, explanation: str, action: str, evidence: list[Evidence]) -> Finding:
-    return Finding(id=f"finding-{clause.id}-{re.sub('[^a-z]+', '-', title.lower()).strip('-')}", clause_id=clause.id, title=title, risk_level=level, confidence=0.92, explanation=explanation, recommended_action=action, contract_excerpt=clause.text[:500], evidence=evidence)
+    return Finding(id=f"finding-{clause.id}-{re.sub('[^a-z]+', '-', title.lower()).strip('-')}", clause_id=clause.id, title=title, risk_level=level, confidence=0.5, explanation=explanation, recommended_action=action, contract_excerpt=clause.text[:500], evidence=evidence)
 
 
 def analyze_clause_risk(clause: Clause, evidence: list[Evidence]) -> list[Finding]:
@@ -134,5 +134,5 @@ def detect_missing_clauses(contract_type: str, clauses: list[Clause], evidence_b
         if category_is_present(requirement.category, present):
             continue
         title = f"Missing {requirement.label} clause"
-        findings.append(Finding(id=f"finding-missing-{requirement.category}", title=title, risk_level=requirement.risk_level, confidence=0.95, explanation=f"No {requirement.label} clause was detected, but the {contract_type} checklist requires one.", recommended_action="Add approved language or document the reviewer's exception before execution.", contract_excerpt="No matching clause found.", evidence=evidence_by_category.get(requirement.category, [])))
+        findings.append(Finding(id=f"finding-missing-{requirement.category}", title=title, risk_level=requirement.risk_level, confidence=0.5, explanation=f"No {requirement.label} clause was detected, but the {contract_type} checklist requires one.", recommended_action="Add approved language or document the reviewer's exception before execution.", contract_excerpt="No matching clause found.", evidence=evidence_by_category.get(requirement.category, [])))
     return findings

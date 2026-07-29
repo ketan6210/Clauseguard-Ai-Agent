@@ -68,7 +68,7 @@ def _conflict_finding(
         clause_id=clauses[0] if clauses else None,
         title=title,
         risk_level=risk_level,
-        confidence=0.9,
+        confidence=0.5,
         explanation=explanation,
         recommended_action=action,
         contract_excerpt=" | ".join(excerpts)[:1000],

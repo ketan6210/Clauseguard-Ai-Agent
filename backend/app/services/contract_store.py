@@ -5,6 +5,7 @@ import uuid
 
 from app.core.config import settings
 from app.schemas.review import Clause, Evidence
+from app.services.clause_classifier import classify_clause
 from app.services.policy_store import _embed, _qdrant_client
 
 
@@ -16,15 +17,60 @@ def _tokens(text: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", text.lower()))
 
 
+_QUERY_EXPANSIONS = {
+    "data_breach_notification": "breach incident security notify notification notice hours days",
+    "payment_terms": "payment invoice fee fees payable net days",
+    "termination": "termination terminate convenience cause cure",
+    "auto_renewal": "renew renewal automatic cancel cancellation notice",
+    "limitation_of_liability": "liability cap damages limitation exposure",
+    "indemnification": "indemnity indemnify defend claims",
+    "data_deletion": "delete deletion erase return retain retention",
+    "audit_rights": "audit inspect inspection records compliance",
+    "data_use": "data use license training artificial intelligence ai commercialize",
+}
+
+
+def _query_context(query: str) -> tuple[set[str], str]:
+    category = classify_clause(query)
+    if category == "other":
+        lowered = query.lower()
+        category_keywords = {
+            "payment_terms": ("invoice", "paid", "payable", "payment", "fee"),
+            "data_breach_notification": ("breach", "incident", "notify", "notification"),
+            "termination": ("terminate", "termination", "cure"),
+            "auto_renewal": ("renew", "renewal", "cancel"),
+            "limitation_of_liability": ("liability", "damages", "cap"),
+            "indemnification": ("indemn", "defend", "claims"),
+            "data_deletion": ("delete", "deletion", "erase", "retention"),
+            "audit_rights": ("audit", "inspect", "inspection"),
+        }
+        category = next(
+            (
+                name
+                for name, keywords in category_keywords.items()
+                if any(keyword in lowered for keyword in keywords)
+            ),
+            "other",
+        )
+    expanded = query
+    if category in _QUERY_EXPANSIONS:
+        expanded += " " + _QUERY_EXPANSIONS[category]
+    return _tokens(expanded), category
+
+
 def local_clause_search(query: str, clauses: list[Clause], limit: int = 5) -> list[Evidence]:
-    query_tokens = _tokens(query)
+    query_tokens, category = _query_context(query)
     scored = []
     for clause in clauses:
         clause_tokens = _tokens(f"{clause.clause_type} {clause.text}")
         overlap = len(query_tokens & clause_tokens)
         if not overlap:
             continue
-        score = overlap / math.sqrt(max(1, len(query_tokens) * len(clause_tokens)))
+        lexical_score = overlap / math.sqrt(max(1, len(query_tokens) * len(clause_tokens)))
+        category_boost = 0.35 if category != "other" and clause.clause_type == category else 0
+        score = min(1.0, lexical_score + category_boost)
+        if score < settings.contract_retrieval_min_score:
+            continue
         scored.append(
             Evidence(
                 source_id=clause.id,
@@ -128,7 +174,18 @@ def search_contract_clauses(
     if settings.qdrant_enabled:
         try:
             if index_contract_clauses(review_id, clauses):
-                return _query_contract_clauses(review_id, query, limit)
+                candidates = _query_contract_clauses(review_id, query, max(limit * 3, 10))
+                query_tokens, category = _query_context(query)
+                reranked = []
+                for item in candidates:
+                    clause_category = item.section.split(" · ", 1)[0]
+                    lexical_overlap = len(query_tokens & _tokens(item.text))
+                    lexical_score = lexical_overlap / max(1, len(query_tokens))
+                    category_boost = 0.25 if category != "other" and clause_category == category else 0
+                    score = min(1.0, item.score * 0.65 + lexical_score * 0.35 + category_boost)
+                    if score >= settings.contract_retrieval_min_score:
+                        reranked.append(item.model_copy(update={"score": round(score, 4)}))
+                return sorted(reranked, key=lambda item: item.score, reverse=True)[:limit]
         except Exception as exc:
             logger.warning("Contract vector query unavailable; using local retrieval: %s", exc)
     return local_clause_search(query, clauses, limit)

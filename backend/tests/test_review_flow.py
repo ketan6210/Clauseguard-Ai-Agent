@@ -35,6 +35,14 @@ def test_complete_review_flow():
     decision = client.post(f"/reviews/{review['review_id']}/decision", json={"finding_id": finding_id, "decision": "approved", "comment": "Confirmed"})
     assert decision.status_code == 200
     assert decision.json()["status"] == "approved"
+    validation = client.post(
+        f"/reviews/{review['review_id']}/validation",
+        json={"finding_id": finding_id, "label": "valid"},
+    )
+    assert validation.status_code == 200
+    calibration = client.get("/reviews/metrics/confidence")
+    assert calibration.status_code == 200
+    assert calibration.json()["reviewed_findings"] >= 1
 
     question = client.post(f"/reviews/{review['review_id']}/ask", json={"question": "What are the breach notification terms?"})
     assert question.status_code == 200

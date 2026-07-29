@@ -1,4 +1,5 @@
 import json
+import hashlib
 import logging
 import math
 import re
@@ -16,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 def load_policies() -> list[dict]:
     return json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+
+
+def policy_version() -> str:
+    return hashlib.sha256(POLICY_PATH.read_bytes()).hexdigest()[:12]
 
 
 def _tokens(text: str) -> set[str]:
@@ -149,24 +154,29 @@ def hybrid_search(query: str, category: str | None = None, limit: int = 5) -> li
         return []
     policies_by_id = {policy["id"]: policy for policy in load_policies()}
     results: dict[str, Evidence] = {}
-    scores: dict[str, float] = {}
+    ranking_scores: dict[str, float] = {}
+    absolute_scores: dict[str, float] = {}
     candidate_limit = max(limit * 3, 10)
     # Reciprocal rank fusion keeps scores comparable across vector and lexical engines.
     for result_set in (vector_search(query, candidate_limit), keyword_search(query, candidate_limit)):
         for rank, item in enumerate(result_set, start=1):
             results[item.source_id] = item
-            scores[item.source_id] = scores.get(item.source_id, 0.0) + 1 / (60 + rank)
+            ranking_scores[item.source_id] = ranking_scores.get(item.source_id, 0.0) + 1 / (60 + rank)
+            absolute_scores[item.source_id] = max(
+                absolute_scores.get(item.source_id, 0.0),
+                max(0.0, min(1.0, item.score)),
+            )
     if category:
         for policy in policies_by_id.values():
             if policy["category"] == category and policy["id"] not in results:
                 results[policy["id"]] = _evidence(policy, 0)
-                scores[policy["id"]] = 0.02
-    for source_id in scores:
+                ranking_scores[policy["id"]] = 0.02
+                absolute_scores[policy["id"]] = 0.0
+    for source_id in ranking_scores:
         if category and policies_by_id.get(source_id, {}).get("category") == category:
-            scores[source_id] += 0.02
-    ranked = sorted(scores, key=scores.get, reverse=True)[:limit]
-    max_score = max((scores[source_id] for source_id in ranked), default=1)
+            ranking_scores[source_id] += 0.02
+    ranked = sorted(ranking_scores, key=ranking_scores.get, reverse=True)[:limit]
     return [
-        results[source_id].model_copy(update={"score": round(scores[source_id] / max_score, 4)})
+        results[source_id].model_copy(update={"score": round(absolute_scores[source_id], 4)})
         for source_id in ranked
     ]
